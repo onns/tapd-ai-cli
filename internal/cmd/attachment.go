@@ -46,6 +46,7 @@ func init() {
 	attachmentListCmd.Flags().StringVar(&flagAttachmentType, "type", "", "条目类型（story|bug|task）")
 	attachmentListCmd.Flags().IntVar(&flagLimit, "limit", 10, "返回数量限制")
 	attachmentListCmd.Flags().IntVar(&flagPage, "page", 1, "页码")
+	attachmentListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, "高级过滤条件（可重复，格式：field=OP<value>，支持 LIKE/EQ/CONTAINS 等 OpenAPI 特殊查询语法）")
 
 	// image get 子命令
 	imageGetCmd.Flags().StringVar(&flagImagePath, "image-path", "", "图片路径（必需，从条目描述中获取）")
@@ -74,7 +75,7 @@ func runAttachmentList(cmd *cobra.Command, args []string) error {
 		Page:        flagPage,
 	}
 
-	attachments, err := apiClient.GetAttachments(context.Background(), req)
+	attachments, err := listWithFilters[model.Attachment](context.Background(), apiClient, "/attachments", req.ToParams(), flagFilter, "Attachment")
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)

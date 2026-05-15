@@ -86,6 +86,7 @@ tapd
 4. **输出格式**：默认所有结构体字段带 `omitempty` 的紧凑 JSON；`--pretty` 添加缩进便于人类阅读；列表默认截断为 10 条并附分页提示。
 5. **错误处理**：明确的退出码（0=成功，1=认证错误，2=未找到，3=参数错误，4=API 错误）；错误信息输出至 stderr 并附可操作提示。
 6. **凭据优先级**：CLI flags > 环境变量（`TAPD_ACCESS_TOKEN` 或 `TAPD_API_USER`/`TAPD_API_PASSWORD`）> `./.tapd.json` > `~/.tapd.json`。同级内 access_token 优先于 api_user/api_password，严格优先级，不合并。
+7. **高级过滤（--filter）**：所有 `list` 命令支持 `--filter "field=OP<value>"` 标志（可重复），直接透传 TAPD OpenAPI 的高级查询语法（LIKE/EQ/CONTAINS 等操作符），不做参数校验。实现方式：CLI 层泛型 helper `listWithFilters[T]` 将 filter 参数合并到 `ToParams()` 结果 map 中，通过 SDK 的 `DoGet` 方法直接发送请求，再用 `ParseList` 解析 TAPD 包装响应。
 
 ## 代码规范
 

@@ -116,6 +116,8 @@ func init() {
 	bugUpdateCmd.Flags().StringVar(&flagResolution, "resolution", "", "解决方法")
 	bugUpdateCmd.Flags().StringArrayVar(&flagCustomField, "custom-field", nil, "自定义字段（可重复，格式：key=value）")
 
+	bugListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, "高级过滤条件（可重复，格式：field=OP<value>，支持 LIKE/EQ/CONTAINS 等 OpenAPI 特殊查询语法）")
+
 	bugCountCmd.Flags().StringVar(&flagStatus, "status", "", "按状态筛选（用 workflow status-map 查询可用值）")
 
 	bugTodoCmd.Flags().IntVar(&flagLimit, "limit", 10, "返回数量限制")
@@ -146,7 +148,7 @@ func runBugList(cmd *cobra.Command, args []string) error {
 		Limit:         flagLimit,
 		Page:          flagPage,
 	}
-	bugs, err := apiClient.ListBugs(context.Background(), req)
+	bugs, err := listWithFilters[model.Bug](context.Background(), apiClient, "/bugs", req.ToParams(), flagFilter, "Bug")
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)

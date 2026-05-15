@@ -117,6 +117,31 @@ tapd wiki list
 tapd --help
 ```
 
+## 高级过滤（--filter）
+
+所有 `list` 命令支持 `--filter` 标志，可重复使用，直接透传 TAPD OpenAPI 的高级查询语法：
+
+```bash
+# 按名称模糊搜索
+tapd story list --filter "name=LIKE<登录>"
+
+# 按自定义字段精确匹配
+tapd story list --filter "custom_field_one=EQ<高优先级>"
+
+# 按时间范围查询
+tapd bug list --filter "created=>2024-01-01" --filter "created=<2024-12-31"
+
+# 组合多个过滤条件
+tapd task list --owner zhangsan --filter "status=CONTAINS_OR<开发中|测试中>"
+
+# 多人查询
+tapd story list --filter "owner=USER_OR<张三|李四>"
+```
+
+支持的操作符：`LIKE`（模糊）、`EQ`（精确）、`NOT_EQ`（不等于）、`LIKE_OR`（多值模糊 OR）、`CONTAINS`（包含所有值 AND）、`CONTAINS_OR`（包含任一值 OR）、`USER_OR`（多人 OR）、`>`/`<`（时间/数值比较）、`~`（时间范围）、`<>`（不等于简写）、`|`（多值 OR）。
+
+适用于所有标准字段和自定义字段（`custom_field_*`），可与已有标志（`--status`、`--owner` 等）组合使用。
+
 ## 命令一览
 
 ```

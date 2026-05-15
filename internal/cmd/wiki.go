@@ -64,6 +64,7 @@ func init() {
 	wikiListCmd.Flags().IntVar(&flagLimit, "limit", 10, "返回数量限制")
 	wikiListCmd.Flags().IntVar(&flagPage, "page", 1, "页码")
 	wikiListCmd.Flags().StringVar(&flagWikiName, "name", "", "按标题筛选")
+	wikiListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, "高级过滤条件（可重复，格式：field=OP<value>，支持 LIKE/EQ/CONTAINS 等 OpenAPI 特殊查询语法）")
 
 	wikiCreateCmd.Flags().StringVar(&flagWikiName, "name", "", "Wiki 标题（必需）")
 	wikiCreateCmd.Flags().StringVar(&flagCreator, "creator", "", "创建人（必需）")
@@ -116,7 +117,7 @@ func runWikiList(cmd *cobra.Command, args []string) error {
 		Page:        flagPage,
 	}
 
-	wikis, err := apiClient.ListWikis(context.Background(), req)
+	wikis, err := listWithFilters[model.Wiki](context.Background(), apiClient, "/tapd_wikis", req.ToParams(), flagFilter, "Wiki")
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)

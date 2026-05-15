@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -56,6 +57,7 @@ var workitemTypeListCmd = &cobra.Command{
 
 func init() {
 	customFieldListCmd.Flags().StringVar(&flagEntityType, "entity-type", "", "类型（stories|tasks|iterations|tcases，必需）")
+	customFieldListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, "高级过滤条件（可重复，格式：field=OP<value>，支持 LIKE/EQ/CONTAINS 等 OpenAPI 特殊查询语法）")
 	customFieldCmd.AddCommand(customFieldListCmd)
 	rootCmd.AddCommand(customFieldCmd)
 
@@ -63,6 +65,7 @@ func init() {
 	rootCmd.AddCommand(storyFieldCmd)
 
 	workitemTypeListCmd.Flags().StringVar(&flagName, "name", "", "按名称筛选")
+	workitemTypeListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, "高级过滤条件（可重复，格式：field=OP<value>，支持 LIKE/EQ/CONTAINS 等 OpenAPI 特殊查询语法）")
 	workitemTypeListCmd.Flags().IntVar(&flagLimit, "limit", 30, "返回数量限制")
 	workitemTypeListCmd.Flags().IntVar(&flagPage, "page", 1, "页码")
 	workitemTypeCmd.AddCommand(workitemTypeListCmd)
@@ -78,12 +81,20 @@ func runCustomFieldList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	validTypes := map[string]bool{"stories": true, "tasks": true, "iterations": true, "tcases": true}
+	if !validTypes[flagEntityType] {
+		output.PrintError(os.Stderr, "invalid_parameter",
+			fmt.Sprintf("invalid entity type: %s, must be one of stories/tasks/iterations/tcases", flagEntityType), "")
+		os.Exit(output.ExitParamError)
+		return nil
+	}
+
 	req := &model.GetCustomFieldsRequest{
 		WorkspaceID: flagWorkspaceID,
 		EntityType:  flagEntityType,
 	}
 
-	data, err := apiClient.GetCustomFields(context.Background(), req)
+	data, err := listWithFilters[model.CustomFieldConfig](context.Background(), apiClient, "/"+flagEntityType+"/custom_fields_settings", req.ToParams(), flagFilter, "CustomFieldConfig")
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)
@@ -125,7 +136,7 @@ func runWorkitemTypeList(cmd *cobra.Command, args []string) error {
 		WorkspaceID: flagWorkspaceID,
 	}
 
-	data, err := apiClient.GetWorkitemTypes(context.Background(), req)
+	data, err := listWithFilters[model.WorkitemType](context.Background(), apiClient, "/workitem_types", req.ToParams(), flagFilter, "WorkitemType")
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)

@@ -27,6 +27,9 @@ var (
 	// 全局共享的客户端和配置
 	apiClient *tapd.Client
 	appConfig *config.Config
+
+	// list 命令共享的 filter 标志
+	flagFilter []string
 )
 
 // rootCmd 是 CLI 的根命令
@@ -220,4 +223,18 @@ func parseCustomFields(fields []string) map[string]string {
 		m[k] = v
 	}
 	return m
+}
+
+// listWithFilters 是一个泛型辅助函数，用于 list 命令支持 --filter 参数。
+// 它将 request struct 的 ToParams() 结果与 --filter 解析出的额外参数合并，
+// 然后通过 SDK 的 DoGet 方法直接发送请求，再用 ParseList 解析 TAPD 包装响应。
+func listWithFilters[T any](ctx context.Context, client *tapd.Client, endpoint string, params map[string]string, filters []string, wrapperKey string) ([]T, error) {
+	for k, v := range parseCustomFields(filters) {
+		params[k] = v
+	}
+	data, err := client.DoGet(ctx, endpoint, params)
+	if err != nil {
+		return nil, err
+	}
+	return tapd.ParseList[T](data, wrapperKey)
 }

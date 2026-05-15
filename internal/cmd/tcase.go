@@ -63,6 +63,8 @@ func init() {
 	tcaseCreateCmd.Flags().StringVar(&flagPriority, "priority", "", "用例等级（high/medium/low）")
 	tcaseCreateCmd.Flags().StringVar(&flagTCaseCreator, "creator", "", "创建人")
 
+	tcaseListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, "高级过滤条件（可重复，格式：field=OP<value>，支持 LIKE/EQ/CONTAINS 等 OpenAPI 特殊查询语法）")
+
 	tcaseBatchCreateCmd.Flags().StringVar(&flagTCasesJSON, "tcases", "", "测试用例 JSON 数组（必需）")
 
 	tcaseCmd.AddCommand(tcaseListCmd, tcaseCreateCmd, tcaseBatchCreateCmd)
@@ -78,7 +80,7 @@ func runTCaseList(cmd *cobra.Command, args []string) error {
 		Page:        flagPage,
 	}
 
-	tcases, err := apiClient.ListTCases(context.Background(), req)
+	tcases, err := listWithFilters[model.TCase](context.Background(), apiClient, "/tcases", req.ToParams(), flagFilter, "Tcase")
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)
