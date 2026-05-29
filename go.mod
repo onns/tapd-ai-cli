@@ -17,5 +17,3 @@ require (
 	golang.org/x/net v0.47.0 // indirect
 )
 
-// TODO: 移除 replace 指令，在 tapd-sdk-go 发布包含 DoGet/ParseList 的新版本后改为升级 require 版本
-replace github.com/studyzy/tapd-sdk-go => ../tapd-sdk-go
