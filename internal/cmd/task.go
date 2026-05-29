@@ -28,6 +28,7 @@ var taskListCmd = &cobra.Command{
 var taskShowCmd = &cobra.Command{
 	Use:   "show <task_id>",
 	Short: "查看任务详情",
+	Long:  "查看任务详情。<task_id> 支持 TAPD 长 ID，或 ≤9 位的短号（短号会按当前 workspace 自动展开）。",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runTaskShow,
 }
@@ -45,7 +46,8 @@ var taskCreateCmd = &cobra.Command{
 var taskUpdateCmd = &cobra.Command{
 	Use:   "update <task_id>",
 	Short: "更新任务",
-	Long: `更新任务，描述支持三种输入方式：
+	Long: `更新任务。<task_id> 支持 TAPD 长 ID，或 ≤9 位的短号（短号会按当前 workspace 自动展开）。
+描述支持三种输入方式：
   1. --description <text>  直接传入描述文本
   2. --file <path>         从本地文件读取描述内容
   3. echo "..." | tapd task update <task_id>  通过 stdin 管道输入`,
@@ -161,7 +163,9 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 }
 
 func runTaskShow(cmd *cobra.Command, args []string) error {
-	task, err := apiClient.GetTask(context.Background(), flagWorkspaceID, args[0])
+	// 短号自动展开为 TAPD 长 ID，向 SDK / printComments 传同一个展开后的 id
+	id := expandShortID(args[0], flagWorkspaceID)
+	task, err := apiClient.GetTask(context.Background(), flagWorkspaceID, id)
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)
@@ -171,7 +175,7 @@ func runTaskShow(cmd *cobra.Command, args []string) error {
 	if err := printDetail(task, "description"); err != nil {
 		return err
 	}
-	printComments(flagWorkspaceID, "tasks", args[0])
+	printComments(flagWorkspaceID, "tasks", id)
 	return nil
 }
 
@@ -222,9 +226,11 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// 短号自动展开为 TAPD 长 ID
+	id := expandShortID(args[0], flagWorkspaceID)
 	req := &model.UpdateTaskRequest{
 		WorkspaceID:   flagWorkspaceID,
-		ID:            args[0],
+		ID:            id,
 		Name:          flagName,
 		Description:   description,
 		Status:        flagStatus,

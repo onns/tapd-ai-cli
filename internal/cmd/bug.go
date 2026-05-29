@@ -33,6 +33,7 @@ var bugListCmd = &cobra.Command{
 var bugShowCmd = &cobra.Command{
 	Use:   "show <bug_id>",
 	Short: "查看缺陷详情",
+	Long:  "查看缺陷详情。<bug_id> 支持 TAPD 长 ID，或 ≤9 位的短号（短号会按当前 workspace 自动展开）。",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runBugShow,
 }
@@ -50,7 +51,8 @@ var bugCreateCmd = &cobra.Command{
 var bugUpdateCmd = &cobra.Command{
 	Use:   "update <bug_id>",
 	Short: "更新缺陷",
-	Long: `更新缺陷，描述支持三种输入方式：
+	Long: `更新缺陷。<bug_id> 支持 TAPD 长 ID，或 ≤9 位的短号（短号会按当前 workspace 自动展开）。
+描述支持三种输入方式：
   1. --description <text>  直接传入描述文本
   2. --file <path>         从本地文件读取描述内容
   3. echo "..." | tapd bug update <bug_id>  通过 stdin 管道输入`,
@@ -171,7 +173,9 @@ func runBugList(cmd *cobra.Command, args []string) error {
 }
 
 func runBugShow(cmd *cobra.Command, args []string) error {
-	bug, err := apiClient.GetBug(context.Background(), flagWorkspaceID, args[0])
+	// 短号自动展开为 TAPD 长 ID，向 SDK / printComments 传同一个展开后的 id
+	id := expandShortID(args[0], flagWorkspaceID)
+	bug, err := apiClient.GetBug(context.Background(), flagWorkspaceID, id)
 	if err != nil {
 		output.PrintError(os.Stderr, "api_error", err.Error(), "")
 		os.Exit(output.ExitAPIError)
@@ -181,7 +185,7 @@ func runBugShow(cmd *cobra.Command, args []string) error {
 	if err := printDetail(bug, "description"); err != nil {
 		return err
 	}
-	printComments(flagWorkspaceID, "bug", args[0])
+	printComments(flagWorkspaceID, "bug", id)
 	return nil
 }
 
@@ -232,9 +236,11 @@ func runBugUpdate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// 短号自动展开为 TAPD 长 ID
+	id := expandShortID(args[0], flagWorkspaceID)
 	req := &model.UpdateBugRequest{
 		WorkspaceID:   flagWorkspaceID,
-		ID:            args[0],
+		ID:            id,
 		Title:         flagTitle,
 		Description:   description,
 		VStatus:       flagStatus,
