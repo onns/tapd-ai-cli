@@ -54,21 +54,15 @@ func setupMockServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, 
 	oldClient := apiClient
 	oldWsID := flagWorkspaceID
 	oldStdout := os.Stdout
-	oldRawBaseURL := rawBaseURL
-	oldAccessToken := flagAccessToken
 
 	apiClient = tapd.NewClientWithBaseURL(srv.URL, srv.URL, "test-token", "", "")
 	flagWorkspaceID = "12345"
-	rawBaseURL = srv.URL
-	flagAccessToken = "test-token"
 
 	cleanup := func() {
 		srv.Close()
 		apiClient = oldClient
 		flagWorkspaceID = oldWsID
 		os.Stdout = oldStdout
-		rawBaseURL = oldRawBaseURL
-		flagAccessToken = oldAccessToken
 	}
 	return srv, cleanup
 }

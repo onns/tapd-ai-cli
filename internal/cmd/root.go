@@ -3,15 +3,9 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/studyzy/tapd-ai-cli/internal/config"
@@ -31,9 +25,8 @@ var (
 	flagAPIPassword string
 
 	// 全局共享的客户端和配置
-	apiClient  *tapd.Client
-	appConfig  *config.Config
-	rawBaseURL string // listWithFilters 使用的 API 基础地址，与 apiClient 保持同步
+	apiClient *tapd.Client
+	appConfig *config.Config
 
 	// list 命令共享的 filter 标志
 	flagFilter []string
@@ -124,7 +117,6 @@ func initClientAndConfig(cmd *cobra.Command) error {
 	}
 
 	apiClient = tapd.NewClientWithBaseURL(cfg.APIBaseURL, cfg.BaseURL, accessToken, apiUser, apiPassword)
-	rawBaseURL = cfg.APIBaseURL
 
 	// workspace-id 标志覆盖配置
 	if flagWorkspaceID == "" {
@@ -264,115 +256,11 @@ func parseFilters(fields []string) map[string]string {
 	return m
 }
 
-// rawHTTPClient 是 listWithFilters 用于发送原始 HTTP 请求的客户端（懒初始化）
-var rawHTTPClient = &http.Client{Timeout: 30 * time.Second}
-
-// rawGet 直接向 TAPD API 发送 GET 请求并返回 data 字段。
-// 用于绕过 SDK 封装以支持 --filter 高级参数。
-func rawGet(ctx context.Context, endpoint string, params map[string]string) (json.RawMessage, error) {
-	baseURL := rawBaseURL
-	if baseURL == "" {
-		baseURL = tapd.DefaultAPIURL
-	}
-	baseURL = strings.TrimRight(baseURL, "/")
-
-	reqURL, err := url.Parse(baseURL + endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL: %w", err)
-	}
-	if len(params) > 0 {
-		q := reqURL.Query()
-		for k, v := range params {
-			q.Set(k, v)
-		}
-		reqURL.RawQuery = q.Encode()
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// 构建 Authorization 头，使用与 SDK 相同的凭据优先级
-	accessToken := flagAccessToken
-	apiUser := flagAPIUser
-	apiPassword := flagAPIPassword
-	if appConfig != nil {
-		if accessToken == "" {
-			accessToken = appConfig.AccessToken
-		}
-		if apiUser == "" {
-			apiUser = appConfig.APIUser
-		}
-		if apiPassword == "" {
-			apiPassword = appConfig.APIPassword
-		}
-	}
-	if accessToken != "" {
-		req.Header.Set("Authorization", "Bearer "+accessToken)
-	} else {
-		encoded := base64.StdEncoding.EncodeToString([]byte(apiUser + ":" + apiPassword))
-		req.Header.Set("Authorization", "Basic "+encoded)
-	}
-
-	resp, err := rawHTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("HTTP request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, truncateString(string(bodyBytes), 200))
-	}
-
-	var tapdResp model.TAPDResponse
-	if err := json.Unmarshal(bodyBytes, &tapdResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response JSON: %w", err)
-	}
-	if tapdResp.Status != 1 {
-		return nil, fmt.Errorf("TAPD API error: %s", tapdResp.Info)
-	}
-	return tapdResp.Data, nil
-}
-
-// parseListResponse 解析 TAPD 列表响应格式 [{"Key": {...}}, ...]
-func parseListResponse[T any](data json.RawMessage, key string) ([]T, error) {
-	var rawList []map[string]json.RawMessage
-	if err := json.Unmarshal(data, &rawList); err != nil {
-		return nil, fmt.Errorf("failed to parse list response: %w", err)
-	}
-	results := make([]T, 0, len(rawList))
-	for i, item := range rawList {
-		raw, ok := item[key]
-		if !ok {
-			continue
-		}
-		var v T
-		if err := json.Unmarshal(raw, &v); err != nil {
-			return nil, fmt.Errorf("failed to parse %s at index %d: %w", key, i, err)
-		}
-		results = append(results, v)
-	}
-	return results, nil
-}
-
-// truncateString 将字符串截断到指定最大字符数
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen]
-}
-
 // listWithFilters 是一个泛型辅助函数，用于 list 命令支持 --filter 参数。
 // 它将 request struct 的 ToParams() 结果与 --filter 解析出的额外参数合并到新 map，
-// 然后通过本地 HTTP 客户端直接发送请求，再解析 TAPD 包装响应。
+// 然后通过 SDK 的 DoGet 方法直接发送请求，再用 ParseList 解析 TAPD 包装响应。
 // 注意：不会修改传入的 params map；filter 值会覆盖同名 params 键。
-func listWithFilters[T any](ctx context.Context, _ *tapd.Client, endpoint string, params map[string]string, filters []string, wrapperKey string) ([]T, error) {
+func listWithFilters[T any](ctx context.Context, client *tapd.Client, endpoint string, params map[string]string, filters []string, wrapperKey string) ([]T, error) {
 	merged := make(map[string]string, len(params)+len(filters))
 	for k, v := range params {
 		merged[k] = v
@@ -380,9 +268,9 @@ func listWithFilters[T any](ctx context.Context, _ *tapd.Client, endpoint string
 	for k, v := range parseFilters(filters) {
 		merged[k] = v
 	}
-	data, err := rawGet(ctx, endpoint, merged)
+	data, err := client.DoGet(ctx, endpoint, merged)
 	if err != nil {
 		return nil, err
 	}
-	return parseListResponse[T](data, wrapperKey)
+	return tapd.ParseList[T](data, wrapperKey)
 }
