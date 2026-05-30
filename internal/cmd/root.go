@@ -70,8 +70,8 @@ func init() {
 			defaultHelp(cmd, args)
 			return
 		}
-		lines := buildSpecLines(rootCmd)
-		printSpecOutput(os.Stdout, rootCmd, lines)
+		coreLines, advancedLines := buildSpecLines(rootCmd)
+		printSpecOutput(os.Stdout, rootCmd, coreLines, advancedLines)
 	})
 
 	rootCmd.PersistentFlags().StringVar(&flagWorkspaceID, "workspace-id", "", "指定工作区 ID（覆盖本地配置）")

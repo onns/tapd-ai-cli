@@ -21,18 +21,65 @@ var groupPriority = map[string]int{
 	"bug":     5,
 }
 
-// specLine 表示一条命令参考行
-type specLine struct {
-	group string // 命令所属分组（第一级子命令名）
-	text  string // 完整的命令参考文本
+// coreCommands 定义 v0.7.0 版本中已有的核心命令集合
+// key 为 group 名（顶层命令），value 为该 group 下的子命令名集合
+// 叶子命令（如 url）使用自身名称作为子命令名
+var coreCommands = map[string]map[string]bool{
+	"url":          {"url": true},
+	"story":        {"list": true, "show": true, "create": true, "update": true, "count": true, "todo": true},
+	"comment":      {"list": true, "add": true, "update": true, "count": true},
+	"task":         {"list": true, "show": true, "create": true, "update": true, "count": true, "todo": true},
+	"bug":          {"list": true, "show": true, "create": true, "update": true, "count": true, "todo": true},
+	"wiki":         {"list": true, "show": true, "create": true, "update": true},
+	"iteration":    {"list": true, "create": true, "update": true, "count": true},
+	"tcase":        {"list": true, "create": true, "batch-create": true},
+	"timesheet":    {"list": true, "add": true, "update": true},
+	"workflow":     {"transitions": true, "status-map": true, "last-steps": true},
+	"relation":     {"bugs": true, "create": true},
+	"auth":         {"login": true},
+	"workspace":    {"list": true, "switch": true, "info": true},
+	"attachment":   {"list": true},
+	"image":        {"get": true},
+	"category":     {"list": true},
+	"custom-field": {"list": true},
+	"story-field":  {"info": true, "label": true},
+	"workitem-type": {"list": true},
+	"release":      {"list": true},
+	"skill":        {"init": true},
+	"qiwei":        {"send": true},
+	"commit-msg":   {"get": true},
 }
 
-// buildSpecLines 遍历命令树，为每个叶子命令生成参考行，并按优先级排序
-func buildSpecLines(root *cobra.Command) []specLine {
-	var lines []specLine
-	walkSpecCommands(root, "", "", &lines)
-	sortSpecLines(lines)
-	return lines
+// specLine 表示一条命令参考行
+type specLine struct {
+	group    string // 命令所属分组（第一级子命令名）
+	leafName string // 叶子命令名（路径最后一段）
+	text     string // 完整的命令参考文本
+}
+
+// buildSpecLines 遍历命令树，为每个叶子命令生成参考行，按核心/高级分组并排序
+func buildSpecLines(root *cobra.Command) (coreLines, advancedLines []specLine) {
+	var allLines []specLine
+	walkSpecCommands(root, "", "", &allLines)
+	for _, l := range allLines {
+		if isCoreCommand(l.group, l.leafName) {
+			coreLines = append(coreLines, l)
+		} else {
+			advancedLines = append(advancedLines, l)
+		}
+	}
+	sortSpecLines(coreLines)
+	sortSpecLines(advancedLines)
+	return
+}
+
+// isCoreCommand 判断命令是否属于 v0.7.0 核心命令集
+func isCoreCommand(group, leafName string) bool {
+	subs, ok := coreCommands[group]
+	if !ok {
+		return false
+	}
+	return subs[leafName]
 }
 
 // sortSpecLines 按 groupPriority 对参考行排序，优先级相同的按分组名字母序
@@ -77,7 +124,14 @@ func walkSpecCommands(cmd *cobra.Command, prefix string, group string, lines *[]
 			walkSpecCommands(child, fullPath, currentGroup, lines)
 		} else {
 			line := commandToLine(child, fullPath)
-			*lines = append(*lines, specLine{group: currentGroup, text: line})
+			// leafName 为相对于 group 的子命令路径
+			// 例如 group="story", fullPath="story list" → leafName="list"
+			// 例如 group="story", fullPath="story link list" → leafName="link list"
+			leafName := fullPath
+			if currentGroup != "" && strings.HasPrefix(fullPath, currentGroup+" ") {
+				leafName = fullPath[len(currentGroup)+1:]
+			}
+			*lines = append(*lines, specLine{group: currentGroup, leafName: leafName, text: line})
 		}
 	}
 }
@@ -197,13 +251,25 @@ func isGlobalDisplayFlag(name string) bool {
 	}
 }
 
-// printSpecOutput 输出完整的参考卡文本
-func printSpecOutput(w *os.File, root *cobra.Command, lines []specLine) {
+// printSpecOutput 输出完整的参考卡文本，分为核心命令和高级命令两个区域
+func printSpecOutput(w *os.File, root *cobra.Command, coreLines, advancedLines []specLine) {
 	// 标题行
 	fmt.Fprintf(w, "tapd - %s\n", root.Short)
 	fmt.Fprintln(w, "Global: [--workspace-id=<id>] [--json（详情提取字段时用，默认勿加）] [--pretty（人类阅读用，AI勿加）] [--no-comments]")
 
-	// 按分组输出
+	// 输出核心命令
+	printGroupedLines(w, coreLines)
+
+	// 输出高级命令
+	if len(advancedLines) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "# ─── 高级命令 ───")
+		printGroupedLines(w, advancedLines)
+	}
+}
+
+// printGroupedLines 按分组输出命令参考行
+func printGroupedLines(w *os.File, lines []specLine) {
 	lastGroup := ""
 	for _, l := range lines {
 		if l.group != lastGroup {

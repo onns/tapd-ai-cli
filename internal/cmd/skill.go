@@ -183,7 +183,8 @@ func generateSkillContent(root *cobra.Command) string {
 
 // buildCommandReferenceMarkdown 从命令树动态生成 Markdown 格式的命令参考
 func buildCommandReferenceMarkdown(root *cobra.Command) string {
-	lines := buildSpecLines(root)
+	coreLines, advancedLines := buildSpecLines(root)
+	lines := append(coreLines, advancedLines...)
 	var b strings.Builder
 	lastGroup := ""
 	for _, l := range lines {

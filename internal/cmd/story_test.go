@@ -13,8 +13,9 @@ import (
 )
 
 func TestBuildSpecLines_StoryUpdateIncludesIterationID(t *testing.T) {
-	lines := buildSpecLines(rootCmd)
-	for _, line := range lines {
+	coreLines, advancedLines := buildSpecLines(rootCmd)
+	allLines := append(coreLines, advancedLines...)
+	for _, line := range allLines {
 		if extractCommandPath(line.text) != "tapd story update" {
 			continue
 		}

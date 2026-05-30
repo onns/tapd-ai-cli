@@ -34,7 +34,8 @@ func TestExtractArgName(t *testing.T) {
 
 // TestBuildSpecLines 测试参考行生成
 func TestBuildSpecLines(t *testing.T) {
-	lines := buildSpecLines(rootCmd)
+	coreLines, advancedLines := buildSpecLines(rootCmd)
+	lines := append(coreLines, advancedLines...)
 
 	if len(lines) == 0 {
 		t.Fatal("buildSpecLines should return non-empty slice")

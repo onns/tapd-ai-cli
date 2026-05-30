@@ -288,8 +288,8 @@ func TestIntegration_HelpOutputValid(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	lines := buildSpecLines(rootCmd)
-	printSpecOutput(os.Stdout, rootCmd, lines)
+	coreLines, advancedLines := buildSpecLines(rootCmd)
+	printSpecOutput(os.Stdout, rootCmd, coreLines, advancedLines)
 
 	w.Close()
 	os.Stdout = old
