@@ -47,7 +47,11 @@ func newCmds2Handler(w http.ResponseWriter, r *http.Request) {
 
 	// ===== source =====
 	case strings.HasSuffix(path, "/code_commit_infos"):
-		w.Write([]byte(`{"status":1,"data":{}}`))
+		if r.Method == http.MethodPost {
+			w.Write([]byte(`{"status":1,"data":{"id":"1001","workspace_id":"12345","message":"fix bug","author":"admin"}}`))
+		} else {
+			w.Write([]byte(`{"status":1,"data":[{"id":"1001","workspace_id":"12345","message":"fix bug","author":"admin"}]}`))
+		}
 	case strings.HasSuffix(path, "/code_commit_objects/workitems"):
 		w.Write([]byte(`{"status":1,"data":{}}`))
 

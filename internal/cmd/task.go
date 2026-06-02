@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	flagStoryID   string
-	flagReleaseID string
+	flagStoryID string
 )
 
 // taskCmd 是 task 父命令
@@ -95,7 +94,6 @@ func init() {
 	taskCreateCmd.Flags().StringVar(&flagIterationID, "iteration-id", "", "关联迭代 ID")
 	taskCreateCmd.Flags().StringVar(&flagEffort, "effort", "", "预估工时")
 	taskCreateCmd.Flags().StringVar(&flagLabel, "label", "", "标签（多个以竖线分隔）")
-	taskCreateCmd.Flags().StringVar(&flagReleaseID, "release-id", "", "发布计划 ID")
 	taskCreateCmd.Flags().StringArrayVar(&flagCustomField, "custom-field", nil, "自定义字段（可重复，格式：key=value）")
 
 	taskUpdateCmd.Flags().StringVar(&flagName, "name", "", "新标题")
@@ -210,7 +208,6 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 		Due:           flagDue,
 		IterationID:   flagIterationID,
 		Effort:        flagEffort,
-		ReleaseID:     flagReleaseID,
 		Label:         flagLabel,
 		CustomFields:  parseCustomFields(flagCustomField),
 	}
