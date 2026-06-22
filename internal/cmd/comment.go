@@ -60,7 +60,7 @@ var commentCountCmd = &cobra.Command{
 
 func init() {
 	// list 子命令
-	commentListCmd.Flags().StringVar(&flagEntryType, "entry-type", "", "评论类型（stories|bug|bug_remark|tasks）")
+	commentListCmd.Flags().StringVar(&flagEntryType, "entry-type", "", "评论类型（stories|bug|bug_remark|tasks|wiki）")
 	commentListCmd.Flags().StringVar(&flagEntryID, "entry-id", "", "条目 ID")
 	commentListCmd.Flags().StringVar(&flagCommentAuthor, "author", "", "按评论人筛选")
 	commentListCmd.Flags().IntVar(&flagLimit, "limit", 10, "返回数量限制")
@@ -68,7 +68,7 @@ func init() {
 	commentListCmd.Flags().StringVar(&flagOrder, "order", "", "排序方式（如 created desc）")
 
 	// add 子命令
-	commentAddCmd.Flags().StringVar(&flagEntryType, "entry-type", "", "评论类型（stories|bug|bug_remark|tasks，必需）")
+	commentAddCmd.Flags().StringVar(&flagEntryType, "entry-type", "", "评论类型（stories|bug|bug_remark|tasks|wiki，必需）")
 	commentAddCmd.Flags().StringVar(&flagEntryID, "entry-id", "", "条目 ID（必需）")
 	commentAddCmd.Flags().StringVar(&flagDescription, "description", "", "评论内容")
 	commentAddCmd.Flags().StringVar(&flagDescFile, "file", "", "从本地文件读取评论内容")
@@ -82,7 +82,7 @@ func init() {
 	// count 子命令
 	commentListCmd.Flags().StringArrayVar(&flagFilter, "filter", nil, filterFlagDesc)
 
-	commentCountCmd.Flags().StringVar(&flagEntryType, "entry-type", "", "评论类型（stories|bug|bug_remark|tasks）")
+	commentCountCmd.Flags().StringVar(&flagEntryType, "entry-type", "", "评论类型（stories|bug|bug_remark|tasks|wiki）")
 	commentCountCmd.Flags().StringVar(&flagEntryID, "entry-id", "", "条目 ID")
 
 	commentCmd.AddCommand(commentListCmd, commentAddCmd, commentUpdateCmd, commentCountCmd)
@@ -135,7 +135,7 @@ func runCommentAdd(cmd *cobra.Command, args []string) error {
 	if flagEntryType == "" || flagEntryID == "" || description == "" {
 		output.PrintError(os.Stderr, "missing_parameter",
 			"--entry-type, --entry-id and description are required",
-			"Usage: tapd comment add --entry-type <stories|bug|bug_remark|tasks> --entry-id <id> --description <content>")
+			"Usage: tapd comment add --entry-type <stories|bug|bug_remark|tasks|wiki> --entry-id <id> --description <content>")
 		os.Exit(output.ExitParamError)
 		return nil
 	}
